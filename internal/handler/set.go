@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"wildberries_test_task/internal/models"
 )
@@ -11,7 +12,7 @@ type SetUserGradeHandler struct {
 }
 
 type SetUserGradeService interface {
-	SetUserGrade(ctx context.Context, u models.UserGrade) error
+	SetUserGrade(ctx context.Context, u models.UserGrade)
 }
 
 func (h *SetUserGradeHandler) Method() string {
@@ -23,6 +24,12 @@ func (h *SetUserGradeHandler) Path() string {
 }
 
 func (h *SetUserGradeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	writeResponse(w, r, "post")
+	userGrade := models.UserGrade{}
+	err := json.NewDecoder(r.Body).Decode(&userGrade)
+	if err != nil {
+		writeResponse(w, r, err)
+		return
+	}
+	h.Service.SetUserGrade(r.Context(), userGrade)
+	writeResponse(w, r, "User Grade stored successfully")
 }

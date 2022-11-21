@@ -1,15 +1,14 @@
-## SET YOUR UUID AFTER ./order/...
-
-GET http://127.0.0.1:8080/get?user_id=1
+GET http://127.0.0.1:8080/get?user_id=alex
 
 ###
 
 POST http://127.0.0.1:8080/set
 
 {
-    "user_id": 1,
-    "event_id": 5,
-    "date": "2022-10-03",
-    "event": "Alex's Happy Birthday !"
+    "user_id": "alex",
+    "postpaid_limit": 5,
+    "spp": 12,
+    "shipping_fee": 7,
+    "return_fee": 9
 }
 

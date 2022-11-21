@@ -10,6 +10,7 @@ import (
 	"time"
 	"wildberries_test_task/internal/handler"
 	"wildberries_test_task/internal/service"
+	"wildberries_test_task/internal/storage"
 
 	"fmt"
 	"log"
@@ -52,7 +53,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s := service.NewService()
+	storage := storage.MemStorage{}
+	service := service.NewService(&storage)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -61,8 +63,8 @@ func main() {
 	router.Use(cors.AllowAll().Handler)
 
 	router.Group(func(router chi.Router) {
-		registerHandler(router, &handler.SetUserGradeHandler{Service: s})
-		registerHandler(router, &handler.GetUserGradeHandler{Service: s})
+		registerHandler(router, &handler.SetUserGradeHandler{Service: service})
+		registerHandler(router, &handler.GetUserGradeHandler{Service: service})
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
