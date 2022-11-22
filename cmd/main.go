@@ -28,7 +28,7 @@ func registerHandler(router chi.Router, handler Handler) {
 	router.Method(handler.Method(), handler.Path(), handler)
 }
 
-func connectionsClosedForServer(server *http.Server) chan struct{} {
+func connectionsClosedForServer(servers []*http.Server) chan struct{} {
 	connectionsClosed := make(chan struct{})
 	go func() {
 		shutdown := make(chan os.Signal, 1)
@@ -39,8 +39,10 @@ func connectionsClosedForServer(server *http.Server) chan struct{} {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
 		log.Println("Closing connections")
-		if err := server.Shutdown(ctx); err != nil {
-			log.Println(err)
+		for _, server := range servers {
+			if err := server.Shutdown(ctx); err != nil {
+				log.Println(err)
+			}
 		}
 		close(connectionsClosed)
 	}()
@@ -56,27 +58,50 @@ func main() {
 	storage := storage.MemStorage{}
 	service := service.NewService(&storage)
 
-	router := chi.NewRouter()
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	router.Use(cors.AllowAll().Handler)
+	getRouter := chi.NewRouter()
+	getRouter.Use(middleware.RequestID)
+	getRouter.Use(middleware.Logger)
+	getRouter.Use(middleware.Recoverer)
+	getRouter.Use(cors.AllowAll().Handler)
 
-	router.Group(func(router chi.Router) {
-		registerHandler(router, &handler.SetUserGradeHandler{Service: service})
+	setRouter := chi.NewRouter()
+	setRouter.Use(middleware.RequestID)
+	setRouter.Use(middleware.Logger)
+	setRouter.Use(middleware.Recoverer)
+	setRouter.Use(cors.AllowAll().Handler)
+
+	getRouter.Group(func(router chi.Router) {
 		registerHandler(router, &handler.GetUserGradeHandler{Service: service})
 	})
 
-	addr := fmt.Sprintf(":%s", cfg.Port)
-	server := http.Server{
-		Addr:    addr,
-		Handler: router,
+	setRouter.Group(func(router chi.Router) {
+		registerHandler(router, &handler.SetUserGradeHandler{Service: service})
+	})
+
+	addrGetPort := fmt.Sprintf(":%s", cfg.GetPort)
+	addrSetPort := fmt.Sprintf(":%s", cfg.SetPort)
+
+	servers := []*http.Server{
+		{
+			Addr:    addrGetPort,
+			Handler: getRouter,
+		},
+		{
+			Addr:    addrSetPort,
+			Handler: setRouter,
+		},
 	}
 
-	connectionsClosed := connectionsClosedForServer(&server)
-	log.Println("Server is listening on " + addr)
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		log.Println(err)
+	connectionsClosed := connectionsClosedForServer(servers)
+	log.Println("Server with get is listening on " + addrGetPort)
+	log.Println("Server with set is listening on " + addrSetPort)
+	for _, server := range servers {
+		server := server
+		go func() {
+			if err := server.ListenAndServe(); err != http.ErrServerClosed {
+				log.Println(err)
+			}
+		}()
 	}
 	<-connectionsClosed
 }
