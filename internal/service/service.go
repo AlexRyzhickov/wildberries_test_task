@@ -25,6 +25,26 @@ func (s Service) GetUserGrade(ctx context.Context, userId string) (*models.UserG
 	return userGrade, nil
 }
 
-func (s Service) SetUserGrade(ctx context.Context, u models.UserGrade) {
-	s.storage.Set(u.UserId, u)
+func (s Service) SetUserGrade(ctx context.Context, grade models.UserGrade) {
+	gradeStored, ok := s.storage.Get(grade.UserId)
+	if !ok {
+		s.storage.Set(grade.UserId, grade)
+		return
+	}
+	if grade.Spp == 0 {
+		grade.Spp = gradeStored.Spp
+	}
+	if grade.PostpaidLimit == 0 {
+		grade.PostpaidLimit = gradeStored.PostpaidLimit
+	}
+	if grade.Spp == 0 {
+		grade.Spp = gradeStored.Spp
+	}
+	if grade.ShippingFee == 0 {
+		grade.ShippingFee = gradeStored.ShippingFee
+	}
+	if grade.ReturnFee == 0 {
+		grade.ReturnFee = gradeStored.ReturnFee
+	}
+	s.storage.Set(grade.UserId, grade)
 }

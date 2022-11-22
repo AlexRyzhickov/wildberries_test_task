@@ -12,3 +12,27 @@ POST http://127.0.0.1:8080/set
     "return_fee": 9
 }
 
+###
+
+GET http://127.0.0.1:8080/get?user_id=mike
+
+###
+
+POST http://127.0.0.1:8080/set
+
+{
+    "user_id": "mike",
+    "postpaid_limit": 8,
+    "spp": 12
+}
+
+###
+
+POST http://127.0.0.1:8080/set
+
+{
+    "user_id": "mike",
+    "shipping_fee": 7,
+    "return_fee": 9
+}
+
