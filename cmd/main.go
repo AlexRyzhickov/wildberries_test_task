@@ -49,6 +49,25 @@ func connectionsClosedForServer(servers []*http.Server) chan struct{} {
 	return connectionsClosed
 }
 
+func createRouter() *chi.Mux {
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+	router.Use(cors.AllowAll().Handler)
+	return router
+}
+
+func createRouterWithBasicAuth() *chi.Mux {
+	creds := map[string]string{
+		"alex": "1234",
+		"mike": "4321",
+	}
+	router := createRouter()
+	router.Use(middleware.BasicAuth("Give username and password", creds))
+	return router
+}
+
 func main() {
 	cfg, err := config.New()
 	if err != nil {
@@ -58,23 +77,8 @@ func main() {
 	storage := storage.MemStorage{}
 	service := service.NewService(&storage)
 
-	getRouter := chi.NewRouter()
-	getRouter.Use(middleware.RequestID)
-	getRouter.Use(middleware.Logger)
-	getRouter.Use(middleware.Recoverer)
-	getRouter.Use(cors.AllowAll().Handler)
-
-	creds := map[string]string{
-		"alex": "1234",
-		"mike": "4321",
-	}
-
-	setRouter := chi.NewRouter()
-	setRouter.Use(middleware.RequestID)
-	setRouter.Use(middleware.Logger)
-	setRouter.Use(middleware.Recoverer)
-	setRouter.Use(middleware.BasicAuth("Give username and password", creds))
-	setRouter.Use(cors.AllowAll().Handler)
+	getRouter := createRouter()
+	setRouter := createRouterWithBasicAuth()
 
 	getRouter.Group(func(router chi.Router) {
 		registerHandler(router, &handler.GetUserGradeHandler{Service: service})
