@@ -64,10 +64,16 @@ func main() {
 	getRouter.Use(middleware.Recoverer)
 	getRouter.Use(cors.AllowAll().Handler)
 
+	creds := map[string]string{
+		"alex": "1234",
+		"mike": "4321",
+	}
+
 	setRouter := chi.NewRouter()
 	setRouter.Use(middleware.RequestID)
 	setRouter.Use(middleware.Logger)
 	setRouter.Use(middleware.Recoverer)
+	setRouter.Use(middleware.BasicAuth("Give username and password", creds))
 	setRouter.Use(cors.AllowAll().Handler)
 
 	getRouter.Group(func(router chi.Router) {

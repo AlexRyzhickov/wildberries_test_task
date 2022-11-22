@@ -3,6 +3,7 @@ GET http://127.0.0.1:8080/get?user_id=alex
 ###
 
 POST http://127.0.0.1:8081/set
+Authorization: Basic YWxleDoxMjM0
 
 {
     "user_id": "alex",
@@ -19,6 +20,7 @@ GET http://127.0.0.1:8080/get?user_id=mike
 ###
 
 POST http://127.0.0.1:8081/set
+Authorization: Basic bWlrZTo0MzIx
 
 {
     "user_id": "mike",
@@ -29,6 +31,7 @@ POST http://127.0.0.1:8081/set
 ###
 
 POST http://127.0.0.1:8081/set
+Authorization: Basic bWlrZTo0MzIx
 
 {
     "user_id": "mike",
