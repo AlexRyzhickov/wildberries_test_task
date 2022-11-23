@@ -16,6 +16,9 @@ import (
 )
 
 const topic = "topic"
+const backupFileName = "backup.csv"
+const csvColumns = "UserId,PostpaidLimit,Spp,ShippingFee,ReturnFee\n"
+const storageErr = "storage error"
 
 type Service struct {
 	storage  storage.Storage
@@ -47,7 +50,7 @@ func NewService(storage storage.Storage, nc *nats.Conn, priority uint) *Service 
 func (s Service) GetUserGrade(ctx context.Context, userId string) (*models.UserGrade, error) {
 	userGrade, ok := s.storage.Get(userId)
 	if !ok {
-		return &models.UserGrade{}, errors.New("storage error")
+		return &models.UserGrade{}, errors.New(storageErr)
 	}
 	return userGrade, nil
 }
@@ -85,11 +88,11 @@ func (s Service) SetUserGrade(ctx context.Context, grade models.UserGrade) error
 }
 
 func publishUserGrade(nc *nats.Conn, msg *models.Msg) error {
-	bytes, err := json.Marshal(&msg)
+	b, err := json.Marshal(&msg)
 	if err != nil {
 		return err
 	}
-	err = nc.Publish(topic, bytes)
+	err = nc.Publish(topic, b)
 	if err != nil {
 		return err
 	}
@@ -102,8 +105,8 @@ func (s Service) Backup(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w.Header.Name = "backup.csv"
-	_, err = w.Write([]byte("UserId,PostpaidLimit,Spp,ShippingFee,ReturnFee\n"))
+	w.Header.Name = backupFileName
+	_, err = w.Write([]byte(csvColumns))
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +124,6 @@ func (s Service) Backup(ctx context.Context) ([]byte, error) {
 			return nil, err
 		}
 	}
-	fmt.Println(time.Unix(0, lastModTime))
 	w.Header.ModTime = time.Unix(0, lastModTime)
 	err = w.Close()
 	if err != nil {
