@@ -7,3 +7,9 @@ type UserGrade struct {
 	ShippingFee   int    `json:"shipping_fee,omitempty"`
 	ReturnFee     int    `json:"return_fee,omitempty"`
 }
+
+type Msg struct {
+	Priority  uint
+	Timestamp int64
+	UserGrade UserGrade
+}

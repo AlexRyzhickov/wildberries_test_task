@@ -2,20 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/nats-io/nats.go"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
+	"wildberries_test_task/internal/config"
 	"wildberries_test_task/internal/handler"
 	"wildberries_test_task/internal/service"
 	"wildberries_test_task/internal/storage"
-
-	"fmt"
-	"log"
-	"net/http"
-	"wildberries_test_task/internal/config"
 )
 
 type Handler interface {
@@ -74,8 +74,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	storage := storage.MemStorage{}
-	service := service.NewService(&storage)
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer nc.Close()
+
+	storage := storage.InitializeMemoryStorage()
+	service := service.NewService(storage, nc, cfg.Priority)
 
 	getRouter := createRouter()
 	setRouter := createRouterWithBasicAuth()

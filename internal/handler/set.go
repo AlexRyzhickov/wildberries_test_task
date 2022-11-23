@@ -12,7 +12,7 @@ type SetUserGradeHandler struct {
 }
 
 type SetUserGradeService interface {
-	SetUserGrade(ctx context.Context, u models.UserGrade)
+	SetUserGrade(ctx context.Context, u models.UserGrade) error
 }
 
 func (h *SetUserGradeHandler) Method() string {
@@ -30,6 +30,10 @@ func (h *SetUserGradeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		writeResponse(w, r, err)
 		return
 	}
-	h.Service.SetUserGrade(r.Context(), userGrade)
+	err = h.Service.SetUserGrade(r.Context(), userGrade)
+	if err != nil {
+		writeResponse(w, r, err)
+		return
+	}
 	writeResponse(w, r, "User Grade stored successfully")
 }

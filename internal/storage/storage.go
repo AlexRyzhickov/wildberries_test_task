@@ -6,26 +6,39 @@ import (
 )
 
 type MemStorage struct {
-	storage sync.Map
+	sync.RWMutex
+	storage map[string]models.Msg
+}
+
+func InitializeMemoryStorage() *MemStorage {
+	return &MemStorage{storage: make(map[string]models.Msg)}
 }
 
 type Storage interface {
-	Set(key string, userGrade models.UserGrade)
+	Set(msg models.Msg)
 	Get(key string) (*models.UserGrade, bool)
 }
 
-func (m *MemStorage) Set(key string, userGrade models.UserGrade) {
-	m.storage.Store(key, userGrade)
+func (m *MemStorage) Set(new models.Msg) {
+	m.Lock()
+	defer m.Unlock()
+	key := new.UserGrade.UserId
+	old, ok := m.storage[key]
+	if ok {
+		if new.Timestamp > old.Timestamp || new.Timestamp == old.Timestamp && new.Priority > old.Priority {
+			m.storage[key] = new
+		}
+	} else {
+		m.storage[key] = new
+	}
 }
 
 func (m *MemStorage) Get(key string) (*models.UserGrade, bool) {
-	value, ok := m.storage.Load(key)
-	if !ok {
-		return nil, ok
-	}
-	userGrade, ok := value.(models.UserGrade)
+	m.RLock()
+	defer m.RUnlock()
+	msg, ok := m.storage[key]
 	if ok {
-		return &userGrade, ok
+		return &msg.UserGrade, true
 	}
-	return nil, ok
+	return nil, false
 }
