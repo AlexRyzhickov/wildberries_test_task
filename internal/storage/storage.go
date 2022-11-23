@@ -17,6 +17,7 @@ func InitializeMemoryStorage() *MemStorage {
 type Storage interface {
 	Set(msg models.Msg)
 	Get(key string) (*models.UserGrade, bool)
+	GetAll() ([]models.UserGrade, int64)
 }
 
 func (m *MemStorage) Set(new models.Msg) {
@@ -41,4 +42,18 @@ func (m *MemStorage) Get(key string) (*models.UserGrade, bool) {
 		return &msg.UserGrade, true
 	}
 	return nil, false
+}
+
+func (m *MemStorage) GetAll() ([]models.UserGrade, int64) {
+	m.RLock()
+	defer m.RUnlock()
+	grades := make([]models.UserGrade, 0)
+	var lastModTime int64
+	for _, msg := range m.storage {
+		grades = append(grades, msg.UserGrade)
+		if msg.Timestamp > lastModTime {
+			lastModTime = msg.Timestamp
+		}
+	}
+	return grades, lastModTime
 }

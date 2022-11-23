@@ -1,10 +1,14 @@
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nats-io/nats.go"
+	"io"
 	"log"
 	"time"
 	"wildberries_test_task/internal/models"
@@ -90,4 +94,38 @@ func publishUserGrade(nc *nats.Conn, msg *models.Msg) error {
 		return err
 	}
 	return nil
+}
+
+func (s Service) Backup(ctx context.Context) ([]byte, error) {
+	var buf bytes.Buffer
+	w, err := gzip.NewWriterLevel(io.Writer(&buf), gzip.BestCompression)
+	if err != nil {
+		return nil, err
+	}
+	w.Header.Name = "backup.csv"
+	_, err = w.Write([]byte("UserId,PostpaidLimit,Spp,ShippingFee,ReturnFee\n"))
+	if err != nil {
+		return nil, err
+	}
+	grades, lastModTime := s.storage.GetAll()
+	for _, grade := range grades {
+		s := fmt.Sprintf("%v,%v,%v,%v,%v\n",
+			grade.UserId,
+			grade.PostpaidLimit,
+			grade.Spp,
+			grade.ShippingFee,
+			grade.ReturnFee,
+		)
+		_, err = w.Write([]byte(s))
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Println(time.Unix(0, lastModTime))
+	w.Header.ModTime = time.Unix(0, lastModTime)
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

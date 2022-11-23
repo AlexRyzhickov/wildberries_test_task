@@ -88,6 +88,7 @@ func main() {
 
 	getRouter.Group(func(router chi.Router) {
 		registerHandler(router, &handler.GetUserGradeHandler{Service: service})
+		registerHandler(router, &handler.BackupHandler{Service: service})
 	})
 
 	setRouter.Group(func(router chi.Router) {
