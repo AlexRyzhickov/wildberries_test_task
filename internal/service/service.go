@@ -10,6 +10,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"io"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 	"wildberries_test_task/internal/models"
 	"wildberries_test_task/internal/storage"
@@ -21,16 +23,18 @@ const csvColumns = "UserId,PostpaidLimit,Spp,ShippingFee,ReturnFee\n"
 const storageErr = "storage error"
 
 type Service struct {
-	storage  storage.Storage
-	nc       *nats.Conn
-	priority uint
+	storage      storage.Storage
+	nc           *nats.Conn
+	priority     uint
+	replicasPort string
 }
 
-func NewService(storage storage.Storage, nc *nats.Conn, priority uint) *Service {
+func NewService(storage storage.Storage, nc *nats.Conn, priority uint, replicasAvailability bool, replicasPort string) *Service {
 	s := Service{
-		storage:  storage,
-		nc:       nc,
-		priority: priority,
+		storage:      storage,
+		nc:           nc,
+		priority:     priority,
+		replicasPort: replicasPort,
 	}
 	_, err := nc.Subscribe(topic, func(m *nats.Msg) {
 		msg := models.Msg{}
@@ -43,6 +47,9 @@ func NewService(storage storage.Storage, nc *nats.Conn, priority uint) *Service 
 	})
 	if err != nil {
 		log.Fatal(err)
+	}
+	if replicasAvailability {
+		s.restoreStorage(replicasPort)
 	}
 	return &s
 }
@@ -105,12 +112,13 @@ func (s Service) Backup(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	grades, lastModTime := s.storage.GetAll()
 	w.Header.Name = backupFileName
+	w.Header.ModTime = time.Unix(0, lastModTime)
 	_, err = w.Write([]byte(csvColumns))
 	if err != nil {
 		return nil, err
 	}
-	grades, lastModTime := s.storage.GetAll()
 	for _, grade := range grades {
 		s := fmt.Sprintf("%v,%v,%v,%v,%v\n",
 			grade.UserId,
@@ -124,10 +132,54 @@ func (s Service) Backup(ctx context.Context) ([]byte, error) {
 			return nil, err
 		}
 	}
-	w.Header.ModTime = time.Unix(0, lastModTime)
 	err = w.Close()
 	if err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func (s Service) restoreStorage(replicasPort string) {
+	httpClient := &http.Client{
+		Timeout: time.Minute * 5,
+	}
+	url := fmt.Sprintf("%v:%v/backup", "http://localhost", replicasPort)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	res, err := httpClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+	reader, err := gzip.NewReader(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lines := strings.Split(string(b), "\n")
+	for i, line := range lines {
+		if i > 0 && i < len(lines)-1 {
+			msg := models.Msg{
+				Priority:  s.priority,
+				Timestamp: reader.ModTime.UnixNano(),
+				UserGrade: models.UserGrade{},
+			}
+			_, err := fmt.Sscanf(strings.Replace(line, ",", " ", -1), "%s %d %d %d %d",
+				&msg.UserGrade.UserId,
+				&msg.UserGrade.PostpaidLimit,
+				&msg.UserGrade.Spp,
+				&msg.UserGrade.ShippingFee,
+				&msg.UserGrade.ReturnFee,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+			s.storage.Set(msg)
+		}
+	}
 }

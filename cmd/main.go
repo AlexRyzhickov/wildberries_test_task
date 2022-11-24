@@ -81,7 +81,7 @@ func main() {
 	defer nc.Close()
 
 	storage := storage.InitializeMemoryStorage()
-	service := service.NewService(storage, nc, cfg.Priority)
+	service := service.NewService(storage, nc, cfg.Priority, cfg.ReplicasAvailability, cfg.ReplicasPort)
 
 	getRouter := createRouter()
 	setRouter := createRouterWithBasicAuth()
